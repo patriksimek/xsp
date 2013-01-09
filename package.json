@@ -1,0 +1,25 @@
+{
+  "name": "xsp",
+  "description": "Node.js web framework",
+  "version": "0.1.2",
+  "author": {
+    "name": "Patrik Simek",
+    "email": "patrik@patriksimek.cz"
+  },
+  "dependencies": {
+
+  },
+  "keywords": [
+    "xsp",
+    "framework",
+    "web"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/patriksimek/xsp"
+  },
+  "main": "index.coffee",
+  "engines": {
+    "node": "*"
+  }
+}
