@@ -103,3 +103,12 @@ global.Date::interval = (f, dt) ->
 				else out += cc
 
 	out
+	
+global.Date::timestamp = () ->
+	Math.round @.getTime() / 1000
+	
+global.Date.now = () ->
+	new Date
+	
+global.Date.timestamp = () ->
+	Date.now().timestamp()

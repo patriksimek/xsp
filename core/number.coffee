@@ -4,3 +4,6 @@ global.Number::digits = (len) ->
 		out = '0'+ out
 
 	out
+	
+global.Number::toRad = () ->
+	@ * Math.PI / 180

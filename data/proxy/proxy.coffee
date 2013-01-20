@@ -1,4 +1,4 @@
-global.Proxy = class Proxy extends EventDispatcher
+global.Proxy = class Proxy
 	fetch: (model, item, name, value) ->
 		if model.aliases and model.aliases[name]
 			name = model.aliases[name]
@@ -7,7 +7,12 @@ global.Proxy = class Proxy extends EventDispatcher
 		if desc
 			switch desc.type
 				when 'date'
-					item[name] = new Date(value)
+					switch desc.format
+						when 'unix'
+							item[name] = new Date(value * 1000)
+						
+						else
+							item[name] = new Date(value)
 					
 				when 'number'
 					item[name] = Number(value)

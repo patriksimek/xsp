@@ -78,28 +78,48 @@ global.FormBuilder = class FormBuilder
 			@buttons.add field
 	
 	generate: (fieldsonly) ->
-		buffer = ""
+		buffer = []
 		enctype = if @multipart then " enctype=\"multipart/form-data\"" else ""
 		
-		unless fieldsonly then buffer = "<form id=\"#{@prefix}form\" method=\"post\" action=\"#{@action}\"#{enctype}><fieldset class=\"#{@name}\"><input type=\"hidden\" name=\"formbuilder\" value=\"1\" />"
-
+		unless fieldsonly then buffer.push "<form id=\"#{@prefix}form\" method=\"post\" action=\"#{@action}\"#{enctype}><fieldset class=\"#{@name}\"><input type=\"hidden\" name=\"formbuilder\" value=\"1\" />"
+		
+		groups = {}
+		groupsc = 0
 		for field in @fields.data
-			buffer += field.generate()
+			if field.group then groupsc++
+			unless groups[field.group] then groups[field.group] = []
+			groups[field.group].push field
+		
+		if groupsc
+			for name, group of groups
+				if name is 'undefined'
+					for field in group
+						buffer.push field.generate()
+						
+				else
+					buffer.push "<div class=\"group #{name}\">"
+					for field in group
+						buffer.push field.generate()
+					buffer.push "</div>"
+			
+		else
+			for field in @fields.data
+				buffer.push field.generate()
 			
 		for button in @buttons.data
-			buffer += button.generate()
+			buffer.push button.generate()
 
 		validations = []
 		for field in @fields.data
 			v = field.validations()
 			if v then validations.push v
 			
-		unless fieldsonly then buffer += "</fieldset></form><script type=\"text/javascript\">$(function(){$(\"##{@prefix}form\").validate({rules:{#{validations.join(',')}}})});</script>"
+		unless fieldsonly then buffer.push "</fieldset></form><script type=\"text/javascript\">$(function(){$(\"##{@prefix}form\").validate({rules:{#{validations.join(',')}}})});</script>"
 		
 		if @ajax and not fieldsonly
-			buffer += "<script type=\"text/javascript\">$(function(){$(\"##{@prefix}form\").submit(formbuilder.submit)});</script>"
+			buffer.push "<script type=\"text/javascript\">$(function(){$(\"##{@prefix}form\").submit(formbuilder.submit)});</script>"
 		
-		buffer
+		buffer.join ''
 
 global.FormBuilderField = class FormBuilderField
 	constructor: (type) ->
@@ -114,6 +134,7 @@ global.FormBuilderField = class FormBuilderField
 		if cfg.value then @value = cfg.value
 		if cfg.checked then @checked = cfg.checked
 		if cfg.validate then @validate = cfg.validate
+		if cfg.group then @group = cfg.group
 		if cfg.on then @on = cfg.on
 
 		if cfg.options instanceof Array 

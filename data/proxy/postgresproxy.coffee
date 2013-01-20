@@ -1,14 +1,13 @@
-pg = require 'pg'
-
 global.PostgresConnection = class PostgresConnection
 	@connection: null
 	
-	constructor: (ip, port, user, password, database) ->
-		if ip then @open.apply this, arguments
+	constructor: () ->
+		if arguments.length then @open.apply this, arguments
 		
 	open: (ip, port, user, password, database) ->
 		if @connection then @close()
 		
+		pg = require 'pg'
 		@connection = new pg.Client("tcp://#{user}:#{password}@#{ip}:#{port}/#{database}")
 		@connection.connect()
 	
@@ -35,63 +34,78 @@ global.PostgresProxy = class PostgresProxy extends Proxy
 		@parameters.push value
 		
 	execute: (callback) ->
-		unless @connection then return false
-		unless @connection instanceof PostgresConnection then return false
+		unless @connection
+			return process.nextTick () ->
+				callback? 'Connection is not set!'
+				
+		unless @connection instanceof PostgresConnection
+			return process.nextTick () ->
+				callback? 'Invalid connection!'
 		
 		if @report 
-			trace "PGP Execute: #{@procedure}", 'grey'
-			trace "PGP Input #{i}: #{p}" for p, i in @parameters
+			trace.yellow "[pgp] execute: #{@procedure}"
+			trace.yellow "[pgp] input #{i}: #{p}" for p, i in @parameters
 			
 		query = @connection.connection.query "select * from #{@procedure} (#{'$'+ (i + 1) for p, i in @parameters})", @parameters
+		recordset = []
 		status = 0
 		error = null
 		
 		query.on 'row', (result) =>
-			if @report 
-				trace "PGP Row ------------------------", 'grey'
-				trace result
-				trace "--------------------------------", 'grey'
-				
+			recordset.push result
+			
 			if result.xresult
 				status = result.xresult
+			
+			if @report 
+				trace.yellow "[pgp] recordset ----------------"
+				inspect.yellow result
+				trace.yellow "[pgp] --------------------------"
 
 		query.on 'error', (err) =>
-			if @report then trace "PGP Error: #{err}", 'red'
+			if @report then trace.red "[pgp] #{err}"
 			error = err
 
 		query.on 'end', () =>
-			if @report then trace "PGP Status: #{status}", 'grey'
+			if @report then trace.yellow "[pgp] status: #{status}"
 			@connection.close()
 			
 			if error
-				callback? -9999, error
+				callback? error
 			else
-				callback? status
+				callback? null, status, recordset
 
 		true
 
 	update: (callback) ->
-		unless @connection then return false
-		unless @connection instanceof PostgresConnection then return false
+		unless @connection
+			return process.nextTick () ->
+				callback? 'Connection is not set!'
+				
+		unless @connection instanceof PostgresConnection
+			return process.nextTick () ->
+				callback? 'Invalid connection!'
 		
 		if @report 
-			trace "PGP Update: #{@procedure}", 'grey'
-			trace "PGP Input #{i}: #{p}" for p, i in @parameters
+			trace.yellow "[pgp] update: #{@procedure}"
+			trace.yellow "[pgp] input #{i}: #{p}" for p, i in @parameters
 			
 		query = @connection.connection.query "select * from #{@procedure} (#{'$'+ (i + 1) for p, i in @parameters})", @parameters
-		output = 'load'
+		recordset = []
 		status = 0
 		error = null
 		
 		query.on 'row', (result) =>
-			if @report 
-				trace "PGP Row ------------------------", 'grey'
-				trace result
-				trace "--------------------------------", 'grey'
-		
+			recordset.push result
+			
 			if result.xresult
 				status = result.xresult
 			
+			if @report 
+				trace.yellow "[pgp] recordset ----------------"
+				inspect.yellow result
+				trace.yellow "[pgp] --------------------------"
+
 			if @model instanceof Model
 				item = @model
 				model = @model.constructor
@@ -109,16 +123,16 @@ global.PostgresProxy = class PostgresProxy extends Proxy
 				@store.add item
 
 		query.on 'error', (err) =>
-			if @report then trace "PGP Error: #{error}", 'red'
+			if @report then trace.red "[pgp]  #{err}"
 			error = err
 
 		query.on 'end', () =>
-			if @report then trace "PGP Status: #{status}", 'grey'
+			if @report then trace.yellow "[pgp] status: #{status}"
 			@connection.close()
 			
 			if error
-				callback? -9999, error
+				callback? error
 			else
-				callback? status
+				callback? null, status, recordset
 
 		true
