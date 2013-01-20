@@ -1,6 +1,6 @@
 #xsp
 
-Node.js web framework in very early stage od development. Documentation comming soon.
+Node.js web framework in very early stage of development. Documentation comming soon.
 
 ## Installation
 
