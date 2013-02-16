@@ -1,52 +1,31 @@
-Db = require('mongodb').Db
-Server = require('mongodb').Server
+xsp.use 'data.proxy.proxy'
+
+MongoClient = require('mongodb').MongoClient
 ObjectID = require('mongodb').ObjectID
 EventEmitter = require('events').EventEmitter
 
 global.MongoConnection = class MongoConnection extends EventEmitter
 	connection: null
 	connected: false
-	reconnect: true
 	
 	constructor: () ->
 		if arguments.length then @open.apply this, arguments
 
-	open: (ip, port, database) ->
+	open: (connectionString) ->
 		if @connection then @close()
 
-		@connection = new Db database, new Server(ip, port, {auto_reconnect: true}, {}), 
-			w: 0
-			native_parser: true
+		MongoClient.connect connectionString, (err, db) =>
+			if err
+				@emit 'error', err
+			
+			else
+				@connection = db
+				@connected = true
+				@emit 'connected', err
 
-		fce = () =>
-			@connection.open (err) =>
-				if err
-					@emit 'error', err
-					if @reconnect
-						setTimeout () ->
-							trace "reconnecting"
-							fce()
-						, 1000
-				
-				else
-					@connected = true
-					@emit 'connected', err
-				
-		@connection.on 'close', () =>
-			@connected = false
-			@emit 'disconnected'
-			if @reconnect
-				setTimeout () ->
-					trace "reconnecting"
-					fce()
-				, 1000
-				
-		fce()
-	
 	close: ->
 		unless @connection then return
 		
-		@reconnect = false
 		@connection.close()
 		@connection = null
 		@connected = false
@@ -65,25 +44,8 @@ global.MongoProxy = class MongoProxy extends Proxy
 		@parameters = []
 	
 	append: (value) ->
-		if value instanceof Model
-			document = MongoProxy.serialize value
-			@parameters.push document
-		
-		else
-			@parameters.push value
-	
-	###@serialize: (model) ->
-		doc = {}
-		for name, item of model.constructor.fields
-			if item.save
-				if item.save.as
-					doc[item.save.as] = model[name]
-				
-				else
-					doc[name] = model[name]
-				
-		doc###
-	
+		@parameters.push @serialize(value)
+
 	execute: (callback) ->
 		unless @connection
 			return process.nextTick () ->

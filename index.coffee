@@ -6,13 +6,11 @@ require './core/string'
 require './core/math'
 require './core/number'
 require './core/date'
+require './core/geometry'
 require './core/geography'
 require './data/model'
 require './data/record'
 require './data/store'
-require './data/proxy/proxy'
-require './forms/formbuilder'
-require './email/email'
 
 global.Scheduler = require('ctask').Scheduler
 global.Job = require('ctask').Job
@@ -29,12 +27,14 @@ schedules = []
 
 global.xsp = 
 	database: {}
+	email: {}
 	workers: 0
 
 	localization: 
 		LANGUAGES: []
 		DEFAULT_LANGUAGE: 'en'
 		INFLECTION_PATTERN: [0, 1, 2, 2, 2, 3]
+		JAVASCRIPT_PATTERN: null
 		
 		multiLang: (req, res, next) ->
 			req.langs = dictionary
@@ -52,6 +52,20 @@ global.xsp =
 				req.lang = dictionary[xsp.localization.DEFAULT_LANGUAGE]
 	
 			next()
+			
+		toJSON: (dictionary, pattern, output) ->
+			unless output then output = {}
+			
+			for name, value of pattern
+				if value is true
+					output[name] = dictionary[name]
+					
+				else
+					if dictionary[name]
+						output[name] = {}
+						xsp.localization.toJSON dictionary[name], value, output[name]
+						
+			output
 
 	main: (req, res, next) ->
 		res.setHeader 'X-Powered-By', "xsp"
@@ -128,24 +142,13 @@ global.xsp =
 					langcookie = value
 				when 'db'
 					xsp.database.connection = value
+				when 'email'
+					xsp.email.connection = value
 				when 'initialized'
 					initializedfce = value
 					
 		catch ex
 			trace.red "[xsp] config: invalid value for parameter \"#{name}\"!"
-	
-	use: (module) ->
-		try
-			require "./#{module}"
-			##trace.grey "[xsp] using: #{module}"
-			
-		catch ex
-			if ex?.code is 'MODULE_NOT_FOUND'
-				trace.red "[xsp] module \"#{module}\" not found!"
-			
-			else
-				trace.red "[xsp] can\'t load module: #{module}"
-				trace.red ex
 	
 	init: (fce) ->
 		tobeinitialized.push fce
@@ -194,7 +197,19 @@ global.xsp =
 		
 	schedule: (opts) ->
 		return new Job(opts).start()
-		
+	
+	use: (module) ->
+		try
+			require __dirname + "/#{module.replace /\./g, '\/'}"
+			
+		catch ex
+			if ex?.code is 'MODULE_NOT_FOUND'
+				trace.red "[xsp] module \"#{module}\" not found!"
+			
+			else
+				trace.red "[xsp] can\'t load module: #{module}"
+				trace.red ex
+	
 global.trace = (msg) ->
 	console.log trace.process() + msg
 	

@@ -1,3 +1,5 @@
+xsp.use 'data.proxy.proxy'
+
 global.PostgresConnection = class PostgresConnection
 	@connection: null
 	

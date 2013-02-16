@@ -26,7 +26,7 @@ global.Store = class Store
 	
 	load: (callback) ->
 		if !@proxy
-			return callback(-9998)
+			return callback 'No proxy defined.'
 
 		@proxy.model = @model
 		@proxy.store = @

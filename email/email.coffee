@@ -1,7 +1,8 @@
 global.Email = class Email
+	proxy: null
 	body: ''
 	subject: ''
-	from: 'xsp <xsp@xsp.cz>'
+	from: ''
 	recipients: null
 
 	constructor: (@name) ->
@@ -11,15 +12,9 @@ global.Email = class Email
 		@recipients.push email
 
 	send: (callback) ->
-		emailjs = require "emailjs"
-		
-		server 	= emailjs.server.connect
-			host: "172.30.183.111"
-			
-		server.send {
+		@proxy.send
 			text: @body
 			from: @from
 			to: @recipients.join ', '
 			subject: @subject
-		}, (err, message) ->
-			console.log(err || message)
+		, callback

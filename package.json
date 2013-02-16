@@ -1,13 +1,13 @@
 {
   "name": "xsp",
   "description": "Node.js web framework",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "author": {
     "name": "Patrik Simek",
     "email": "patrik@patriksimek.cz"
   },
   "dependencies": {
-
+    "ctask": "*"
   },
   "keywords": [
     "xsp",

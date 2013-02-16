@@ -4,6 +4,7 @@ global.FormBuilder = class FormBuilder
 	submited: false
 	ajax: false
 	multipart: false
+	last: null
 
 	constructor: (@name) ->
 		@fields = new Store
@@ -52,7 +53,7 @@ global.FormBuilder = class FormBuilder
 		unless instance instanceof Model 
 			return @
 					
-		for field in @fields.data
+		for field in @fields.data when field.form
 			instance[field.name] = field.value
 			
 		@
@@ -76,20 +77,33 @@ global.FormBuilder = class FormBuilder
 			
 		else if field instanceof FormBuilderButton
 			@buttons.add field
+			
+		@last = field
 	
 	generate: (fieldsonly) ->
 		buffer = []
 		enctype = if @multipart then " enctype=\"multipart/form-data\"" else ""
 		
-		unless fieldsonly then buffer.push "<form id=\"#{@prefix}form\" method=\"post\" action=\"#{@action}\"#{enctype}><fieldset class=\"#{@name}\"><input type=\"hidden\" name=\"formbuilder\" value=\"1\" />"
-		
 		groups = {}
 		groupsc = 0
 		for field in @fields.data
-			if field.group then groupsc++
-			unless groups[field.group] then groups[field.group] = []
-			groups[field.group].push field
+			if field.group 
+				groupsc++
+				if field.group.substr(0, 1) is '#'
+					field.groupController = field.group.substr 1
+					unless groups[undefined] then groups[undefined] = []
+					groups[undefined].push field
+				
+				else
+					unless groups[field.group] then groups[field.group] = []
+					groups[field.group].push field
+			
+			else
+				unless groups[undefined] then groups[undefined] = []
+				groups[undefined].push field
 		
+		unless fieldsonly then buffer.push "<form id=\"#{@prefix}form\" method=\"post\" action=\"#{@action}\" class=\"formbuilder#{if @ajax then ' ajax' else ''}\" data-validate=\"#{if @ajax then 'formbuilder' else 'parsley'}\"#{enctype}><fieldset class=\"#{@name}#{if groupsc then ' groups' else ''}\"><input type=\"hidden\" name=\"formbuilder\" value=\"1\" />"
+
 		if groupsc
 			for name, group of groups
 				if name is 'undefined'
@@ -109,15 +123,7 @@ global.FormBuilder = class FormBuilder
 		for button in @buttons.data
 			buffer.push button.generate()
 
-		validations = []
-		for field in @fields.data
-			v = field.validations()
-			if v then validations.push v
-			
-		unless fieldsonly then buffer.push "</fieldset></form><script type=\"text/javascript\">$(function(){$(\"##{@prefix}form\").validate({rules:{#{validations.join(',')}}})});</script>"
-		
-		if @ajax and not fieldsonly
-			buffer.push "<script type=\"text/javascript\">$(function(){$(\"##{@prefix}form\").submit(formbuilder.submit)});</script>"
+		unless fieldsonly then buffer.push "</fieldset></form>"
 		
 		buffer.join ''
 
@@ -134,6 +140,8 @@ global.FormBuilderField = class FormBuilderField
 		if cfg.value then @value = cfg.value
 		if cfg.checked then @checked = cfg.checked
 		if cfg.validate then @validate = cfg.validate
+		if cfg.required then @required = cfg.required
+		if cfg.readonly then @readonly = cfg.readonly
 		if cfg.group then @group = cfg.group
 		if cfg.on then @on = cfg.on
 
@@ -149,48 +157,55 @@ global.FormBuilderField = class FormBuilderField
 		buffer = ""
 		
 		if @type != FormBuilderField.HIDDEN
-			buffer += "<label for=\"#{@owner.prefix}#{@name}\">#{@label ? @name}</label>"
+			buffer += "<label for=\"#{@owner.prefix}#{@name}\">#{@label ? @name}#{if @required then ' <span class="required">*</span>' else ''}</label>"
 		
-		value = if @value then " value=\"#{@value}\"" else ""
+		value = if @value then " value=\"#{String(@value)}\"" else ""
+		readonly = if @readonly then " disabled=\"disabled\"" else ""
 		
 		switch @type
 			when FormBuilderField.HIDDEN
-				buffer += "<input type=\"hidden\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{@events()}>"
+				buffer += "<input type=\"hidden\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{readonly}#{@events()}#{@validations()}>"
 				
 			when FormBuilderField.TEXTFIELD
-				buffer += "<input type=\"text\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{@events()}>"
+				buffer += "<input type=\"text\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{readonly}#{@events()}#{@validations()}>"
 			
 			when FormBuilderField.FILE
-				buffer += "<input type=\"file\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{@events()}>"
+				buffer += "<input type=\"file\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{readonly}#{@events()}#{@validations()}>"
 			
 			when FormBuilderField.PASSWORD
-				buffer += "<input type=\"password\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{@events()}>"
+				buffer += "<input type=\"password\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{readonly}#{@events()}#{@validations()}>"
 			
 			when FormBuilderField.CHECKBOX
-				buffer += "<input type=\"checkbox\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\" value=\"on\""
+				buffer += "<input type=\"checkbox\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\" value=\"#{@value ? 'on'}\""
 				if @checked then buffer += " checked=\"checked\""
-				buffer += "#{@events()}>"
+				buffer += "#{readonly}#{@events()}#{@validations()}>"
 				
 			when FormBuilderField.SELECT
-				buffer += "<select name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{@events()}>"
+				if @groupController
+					buffer += "<select name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\" class=\"groupctrl\" data-group=\"#{@groupController}\"#{readonly}#{@events()}#{@validations()}>"
+				
+				else
+					buffer += "<select name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{readonly}#{@events()}#{@validations()}>"
 				
 				for option in @options
-					checked = if option.value == @value then " selected=\"selected\"" else ""
-					buffer += "<option value=\"#{option.value}\"#{checked}>#{option.label}</option>"
+					checked = if String(option.value) is String(@value) then " selected=\"selected\"" else ""
+					buffer += "<option value=\"#{String(option.value)}\"#{checked}>#{option.label}</option>"
 				
 				buffer += "</select>"
 				
 		buffer
 	
 	validations: ->
-		unless @validate
-			return
-			
 		out = []
-		for name, value of @validate
-			out.push "#{name}:#{value}"
-			
-		"#{@name}:{#{out.join(',')}}"
+		
+		if @validate
+			for name, value of @validate
+				out.push "data-#{name}=\"#{value}\""
+		
+		if @required
+			out.push "data-required=\"true\""
+		
+		" #{out.join(' ')}"
 		
 	events: ->
 		unless @on
