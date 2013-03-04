@@ -1,9 +1,15 @@
-global.Number::digits = (len) ->
-	out = this.toString()
-	while out.length < len
-		out = '0'+ out
-
-	out
+Object.defineProperty Number.prototype, 'digits',
+	value: (len) ->
+		out = this.toString()
+		while out.length < len
+			out = '0'+ out
 	
-global.Number::toRad = () ->
-	@ * Math.PI / 180
+		out
+		
+	enumerable: false
+	
+Object.defineProperty Number.prototype, 'toRad',
+	value: () ->
+		@ * Math.PI / 180
+		
+	enumerable: false

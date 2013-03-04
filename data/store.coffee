@@ -23,6 +23,14 @@ global.Store = class Store
 		@eof = false
 		@data.push item
 		@count++
+		
+		@
+		
+	remove: (item) ->
+		index = @data.indexOf item
+		
+		if index isnt -1
+			@data.splice index, 1
 	
 	load: (callback) ->
 		if !@proxy

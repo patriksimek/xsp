@@ -52,8 +52,10 @@ global.FormBuilder = class FormBuilder
 	into: (instance) ->
 		unless instance instanceof Model 
 			return @
-					
-		for field in @fields.data when field.form
+			
+		model = instance.constructor
+		
+		for field in @fields.data when model.fields[field.name].form
 			instance[field.name] = field.value
 			
 		@
@@ -79,6 +81,19 @@ global.FormBuilder = class FormBuilder
 			@buttons.add field
 			
 		@last = field
+		
+	remove: (field) ->
+		if typeof field is 'string'
+			field = @field field
+			
+			unless field
+				field = @button field
+			
+		if field instanceof FormBuilderField
+			@fields.remove field
+			
+		else if field instanceof FormBuilderButton
+			@buttons.remove field
 	
 	generate: (fieldsonly) ->
 		buffer = []
@@ -126,35 +141,42 @@ global.FormBuilder = class FormBuilder
 		unless fieldsonly then buffer.push "</fieldset></form>"
 		
 		buffer.join ''
+		
+	field: (name) ->
+		for item in @fields.data when item.name is name
+			return item
+			
+		null
+	
+	button: (name) ->
+		for item in @buttons.data when item.name is name
+			return item
+			
+		null
 
 global.FormBuilderField = class FormBuilderField
+	visible: true
+	rows: 5
+	
 	constructor: (type) ->
 		@type = type ? FormBuilderField.TEXTFIELD
 		@on = {}
 		@options = []
 	
 	from: (cfg) ->
-		if cfg.type then @type = cfg.type
-		if cfg.name then @name = cfg.name
-		if cfg.label then @label = cfg.label
-		if cfg.value then @value = cfg.value
-		if cfg.checked then @checked = cfg.checked
-		if cfg.validate then @validate = cfg.validate
-		if cfg.required then @required = cfg.required
-		if cfg.readonly then @readonly = cfg.readonly
-		if cfg.group then @group = cfg.group
-		if cfg.on then @on = cfg.on
+		for name, item of cfg
+			@[name] = item
 
-		if cfg.options instanceof Array 
-			@options = cfg.options
-			
-		else if cfg.options instanceof Function
-			@options = cfg.options()
+		if @options instanceof Function
+			@options = @options()
 			
 		@
 		
 	generate: ->
 		buffer = ""
+		
+		unless @visible
+			return buffer
 		
 		if @type != FormBuilderField.HIDDEN
 			buffer += "<label for=\"#{@owner.prefix}#{@name}\">#{@label ? @name}#{if @required then ' <span class="required">*</span>' else ''}</label>"
@@ -168,6 +190,9 @@ global.FormBuilderField = class FormBuilderField
 				
 			when FormBuilderField.TEXTFIELD
 				buffer += "<input type=\"text\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{readonly}#{@events()}#{@validations()}>"
+			
+			when FormBuilderField.TEXTAREA
+				buffer += "<textarea name=\"#{@name}\" rows=\"#{@rows}\" id=\"#{@owner.prefix}#{@name}\"#{readonly}#{@events()}#{@validations()}>#{if @value then String(@value) else ''}</textarea>"
 			
 			when FormBuilderField.FILE
 				buffer += "<input type=\"file\" name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{value}#{readonly}#{@events()}#{@validations()}>"
@@ -187,9 +212,21 @@ global.FormBuilderField = class FormBuilderField
 				else
 					buffer += "<select name=\"#{@name}\" id=\"#{@owner.prefix}#{@name}\"#{readonly}#{@events()}#{@validations()}>"
 				
+				groups = {}
 				for option in @options
-					checked = if String(option.value) is String(@value) then " selected=\"selected\"" else ""
-					buffer += "<option value=\"#{String(option.value)}\"#{checked}>#{option.label}</option>"
+					unless groups[option.group] then groups[option.group] = []
+					groups[option.group].push option
+				
+				for name, group of groups
+					if name isnt 'undefined'
+						buffer += "<optgroup label=\"#{name}\">"
+					
+					for option in group
+						checked = if String(option.value) is String(@value) then " selected=\"selected\"" else ""
+						buffer += "<option value=\"#{String(option.value)}\"#{checked}>#{option.label}</option>"
+					
+					if name isnt 'undefined'
+						buffer += "</optgroup>"
 				
 				buffer += "</select>"
 				
@@ -216,9 +253,14 @@ global.FormBuilderField = class FormBuilderField
 			out.push "on#{name}=\"#{value}\""
 			
 		" #{out.join(' ')}"
+		
+	move: (index) ->
+		@owner.fields.data.splice @owner.fields.data.indexOf(@), 1
+		@owner.fields.data.splice index, 0, @
 	
 	@HIDDEN: 'hidden'
 	@TEXTFIELD: 'text'
+	@TEXTAREA: 'textarea'
 	@CHECKBOX: 'checkbox'
 	@SELECT: 'select'
 	@PASSWORD: 'password'

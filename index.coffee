@@ -1,6 +1,7 @@
 cluster = require 'cluster'
 os = require 'os'
 
+require './core/object'
 require './core/array'
 require './core/string'
 require './core/math'
