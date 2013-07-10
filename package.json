@@ -1,25 +1,23 @@
 {
-  "name": "xsp",
-  "description": "Node.js web framework",
-  "version": "0.1.7",
-  "author": {
-    "name": "Patrik Simek",
-    "email": "patrik@patriksimek.cz"
-  },
-  "dependencies": {
-    "ctask": "*"
-  },
-  "keywords": [
-    "xsp",
-    "framework",
-    "web"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/patriksimek/xsp"
-  },
-  "main": "index.coffee",
-  "engines": {
-    "node": "*"
-  }
+	"author": {
+		"name": "Patrik Simek",
+		"url": "http://patriksimek.cz"
+	},
+	"name": "xsp",
+	"description": "NodeJS MVC framework",
+	"version": "2.0.1",
+	"main": "index.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/patriksimek/xsp"
+	},
+	"licenses": [
+		{
+			"type": "MIT",
+			"url": "https://github.com/caolan/async/raw/master/LICENSE"
+		}
+	],
+	"dependencies": {
+		"js-yaml": "*"
+	}
 }

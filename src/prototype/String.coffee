@@ -19,3 +19,12 @@ global.String::crop = (length, add) ->
 		
 	else
 		@
+		
+global.String::inject = (index, text) ->
+	@substr(0, index) + text + @substr(index)
+	
+global.String::escape = ->
+	@.replace(/&(?!\w+;)/g, '&amp;')
+	.replace(/</g, '&lt;')
+	.replace(/>/g, '&gt;')
+	.replace(/"/g, '&quot;')

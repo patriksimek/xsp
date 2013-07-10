@@ -1,6 +1,6 @@
 #xsp
 
-Node.js web framework in very early stage of development. Documentation comming soon.
+NodeJS MVC framework in very early stage of development. Documentation comming soon.
 
 ## Installation
 
@@ -9,7 +9,7 @@ Node.js web framework in very early stage of development. Documentation comming 
 ## Examples
 
 ```javascript
-require('xsp'); 
+var xsp = require('xsp'); 
 ```
 
 ## License

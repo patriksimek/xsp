@@ -1,1 +1,0 @@
-global.Record = class Record extends Model
