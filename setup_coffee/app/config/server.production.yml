@@ -1,0 +1,4 @@
+server:
+  host: 'www.yourdomain.com'
+  port: 80
+  hostname: 'www.yourdomain.com'

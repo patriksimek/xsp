@@ -139,7 +139,7 @@ xsp.autoload = (dir, scope) ->
 				inspect.red ex
 				
 	else
-		if fs.existsSync "#{dir}.js"
+		if fs.existsSync "#{dir}.js" or fs.existsSync "#{dir}.coffee"
 			try
 				if scope
 					require(dir)?.call xsp

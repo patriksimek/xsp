@@ -4,13 +4,27 @@ NodeJS MVC framework in very early stage of development. Documentation comming s
 
 ## Installation
 
-    npm install xsp
-    
-## Examples
+    $ npm install xsp
 
-```javascript
-var xsp = require('xsp'); 
-```
+## Quick start
+
+`xsp`, the command line interface can be used to generate a sample application. To use it, install xsp globally.
+
+    $ npm install xsp -g
+
+Create an application to current directory and install dependencies.
+
+    $ xsp --create .
+    $ npm install
+    $ node server.js
+
+To create a CoffeeScript sample application, use this commands:
+
+    $ xsp --create . --language coffeescript
+    $ npm install
+    $ coffee server.coffee
+
+The application is available at [localhost:3000](http://localhost:3000).
 
 ## License
 
