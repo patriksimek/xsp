@@ -34,7 +34,7 @@ if fs.existsSync "#{__dirname}/../../../app/config/server.#{xsp.env}.yml"
 	cfgupdate = (tar, src) ->
 		for name, value of src
 			if tar[name]
-				if typeof tar[name] is 'object' and src[name] is 'object'
+				if typeof tar[name] is 'object' and typeof src[name] is 'object'
 					unless tar[name] instanceof Array
 						cfgupdate tar[name], src[name]
 					
@@ -48,6 +48,16 @@ if fs.existsSync "#{__dirname}/../../../app/config/server.#{xsp.env}.yml"
 				tar[name] = src[name]
 	
 	cfgupdate xsp.cfg, cfgmore
+
+xsp.languageDefaults = (req) ->
+	unless xsp.cfg.defaults then return null
+		
+	for lang in req.acceptedLanguages
+		lang = lang.toLowerCase()
+		if xsp.cfg.defaults[lang]
+			return xsp.cfg.defaults[lang]
+	
+	xsp.cfg.defaults['*']
 
 # -----------------------------------
 
@@ -404,11 +414,12 @@ app.use (req, res, next) ->
 	next()
 	
 routed = (req, res, next) ->
-	req.language = req.params?.lang ? req.cookies?.language ? xsp.cfg.default_locale
+	req.defaults = xsp.languageDefaults(req)
+	req.language = req.params?.lang ? req.cookies?.language ? req.defaults?.locale ? xsp.cfg.default_locale
 
 	if req.route.path.substr(0, 6) is '/:lang'
 		if xsp.cfg.locales.indexOf(req.language) is -1
-			res.redirect xsp.path('app#index', xsp.cfg.default_locale)
+			res.redirect xsp.path('app#index', req.defaults?.locale ? xsp.cfg.default_locale)
 			return
 
 	req.t = (path, variables) ->

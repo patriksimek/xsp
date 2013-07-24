@@ -1,10 +1,12 @@
 global.String::multiply = (count, separator) ->
+	i = 0
 	out = ''
 	while i < count
 		if out.length > 0 and separator
 			out += separator
 			
 		out += @
+		i++
 		
 	out
 
