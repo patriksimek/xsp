@@ -6,24 +6,26 @@ report = require './report'
 tasks = require './tasks'
 http = require 'http'
 https = require 'https'
+path = require 'path'
 
 xsp = module.exports
 xsp.tasks = tasks
 	
 # -----------------------------------
 
-global.trace = (msg) ->
-	console.log Array.prototype.join.call arguments, ', '
-	
-global.inspect = (obj) ->
-	console.dir obj
+global.trace = console.log.bind(console)
+global.inspect = console.dir.bind(console)
 
 require('./colors.js').call xsp
 
 # -----------------------------------
 
 xsp.env = process.env.NODE_ENV or 'development'
-xsp.cfg = require("#{__dirname}/../../../app/config/server.yml").server
+if fs.existsSync "#{__dirname}/../../../app/config/server.yml"
+	xsp.cfg = require("#{__dirname}/../../../app/config/server.yml").server
+else
+	xsp.cfg = {}
+	
 xsp.db = null # placeholder for database connection
 
 if xsp.env is 'test'
@@ -61,85 +63,75 @@ xsp.languageDefaults = (req) ->
 
 # -----------------------------------
 
-loaded = {}
-loadedQueue = {}
-loadModule = (module, loadedpath) ->
-	module?.call xsp
-	loaded[loadedpath] = true
-									
-	for path, module of loadedQueue
-		deps = module.DEPENDENCIES
-		index = deps.indexOf loadedpath
+cwd = process.cwd()
 
-		if index isnt -1
-			deps.splice index, 1
+xsp.require = (module, workdir) ->
+	if workdir
+		pwd = cwd
+		cwd = workdir
+
+		if require.cache[require.resolve(module)]
+			return require.cache[require.resolve(module)]
+	
+		try
+			out = require(module)?.call xsp
+		catch ex
+			trace.red "[xsp] failed to load module: #{module}"
+			console.error ex
+		
+		cwd = pwd
+		
+		return out
+	
+	else
+		if require.cache[require.resolve("#{cwd}/#{module}")]
+			return require.cache[require.resolve("#{cwd}/#{module}")]
 			
-			if deps.length is 0
-				delete loadedQueue[path]
-				
-				#trace "loading queued", path
-				loadModule module, path
+		try
+			return require("#{cwd}/#{module}")?.call xsp
+		catch ex
+			trace.red "[xsp] failed to load module: #{cwd}/#{module}"
+			console.error ex
 
 xsp.autoload = (dir, scope) ->
 	if fs.existsSync "#{dir}"
 		if fs.lstatSync(dir).isDirectory()
-			later = []
-			
 			fs.readdirSync(dir).forEach (file) ->
 				path = require('path').normalize("#{dir}/#{file}")
 				stats = fs.lstatSync path
 				
 				unless file.substr(0, 1) is '.'
 					if stats.isDirectory()
-						later.push path
+						xsp.autoload path, scope
+						
 					else
-						try
-							if scope
-								module = require(path)
-								
-								module.DEPENDENCIES ?= []
-								if typeof module.DEPENDENCIES is 'string' 
-									module.DEPENDENCIES = [module.DEPENDENCIES]
-									
-								deps = module.DEPENDENCIES
-								
-								for dep, index in deps
-									deps[index] = require('path').normalize(dep)
-								
-								if deps.length > 0
-									for dep, index in deps by -1
-										if loaded[dep] then deps.splice index, 1
-								
-								if deps.length is 0
-									loadModule module, path
-								
-								else
-									loadedQueue[path] = module
-									#trace "queued: #{path}"
-									
-							else
+						if scope
+							xsp.require path, dir
+						
+						else
+							try
 								require path
-								
-						catch ex
-							trace.red "[xsp] autoload failed on: #{path}"
-							inspect.red ex
-							
-			for l in later
-				xsp.autoload l, scope
-							
+			
+							catch ex
+								trace.red "[xsp] autoload failed on: #{dir}"
+								console.error ex
+			
 		else
-			try
-				if scope
-					require(dir)?.call xsp
-				else
-					require dir
-					
-			catch ex
-				trace.red "[xsp] autoload failed on: #{dir}"
-				inspect.red ex
+			path = dir
+			
+			if scope
+				xsp.require path, path.dirname(path)
+				
+			else
+				try
+					require module
+
+				catch ex
+					trace.red "[xsp] autoload failed on: #{dir}"
+					console.error ex
 				
 	else
-		if fs.existsSync "#{dir}.js" or fs.existsSync "#{dir}.coffee"
+		if fs.existsSync "#{dir}.js"
 			try
 				if scope
 					require(dir)?.call xsp
@@ -524,6 +516,13 @@ xsp.basicAuth = require './middleware/basicAuth'
 xsp.autoload "#{__dirname}/../../../app/helpers", true
 xsp.autoload "#{__dirname}/../../../app/models", true
 xsp.autoload "#{__dirname}/../../../app/controllers", true
+
+for name, model of xsp when model?.prototype instanceof xsp.Model
+	for key, value of model.schema when typeof value is 'string'
+		if value.substr(0, 1) is '@'
+			model.schema[key] = xsp[value.substr(1)]
+		else
+			model.schema[key] = global[value]
 
 for name, controller of xsp when controller?.prototype instanceof xsp.Controller
 	name = name.toLowerCase()
