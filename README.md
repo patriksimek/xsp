@@ -1,4 +1,4 @@
-#xsp
+#xsp [Project abandoned]
 
 NodeJS MVC framework in very early stage of development. Documentation comming soon.
 
